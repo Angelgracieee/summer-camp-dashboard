@@ -11,6 +11,11 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "select_account",
+        },
+      },
     }),
   ],
   session: {
@@ -19,8 +24,6 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user }) {
       const email = user.email?.trim().toLowerCase();
-      console.log("Google user email:", email);
-      console.log("Allowed emails:", allowedEmails);
       return !!email && allowedEmails.includes(email);
     },
     async jwt({ token, user }) {

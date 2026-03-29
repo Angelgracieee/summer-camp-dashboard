@@ -206,6 +206,7 @@ export default function DashboardPage() {
                 <div className="rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200">
                   Supervisor Access Only
                 </div>
+                
 
                 <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
                   Signed in as:{" "}
