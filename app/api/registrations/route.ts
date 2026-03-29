@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { readSheetValues } from "@/lib/sheets";
 
 type RankingItem = {
@@ -82,6 +84,18 @@ function countRanking(items: string[]): RankingItem[] {
 }
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unauthorized",
+      },
+      { status: 401 }
+    );
+  }
+
   try {
     const rows = await readSheetValues();
 

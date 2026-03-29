@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { signOut, useSession } from "next-auth/react";
 
 type RankingItem = {
   rank: number;
@@ -53,6 +54,8 @@ type FieldProps = {
 };
 
 export default function DashboardPage() {
+  const { data: session, status } = useSession();
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [selected, setSelected] = useState<Respondent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +69,16 @@ export default function DashboardPage() {
       const res = await fetch("/api/registrations", {
         cache: "no-store",
       });
+
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
+      if (res.status === 403) {
+        window.location.href = "/auth/error?error=AccessDenied";
+        return;
+      }
 
       if (!res.ok) {
         throw new Error("Failed to fetch dashboard data.");
@@ -102,14 +115,21 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    loadData(true);
+  if (status === "loading") return;
+
+  if (status === "unauthenticated") {
+    window.location.href = "/login";
+    return;
+  }
+
+  loadData(true);
 
     const interval = setInterval(() => {
       loadData(false);
     }, 10000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [status]);
 
   const filteredRespondents = useMemo(() => {
     if (!data?.respondents) return [];
@@ -132,12 +152,19 @@ export default function DashboardPage() {
     });
   }, [data, search, filter]);
 
-  if (loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#312e81,_#111827_38%,_#0f172a_70%,_#020617_100%)] px-6 py-10 text-center text-lg font-semibold text-white">
         Loading...
       </div>
     );
+  }
+
+  if (status === "unauthenticated") {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    return null;
   }
 
   if (!data) {
@@ -151,16 +178,15 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#312e81,_#111827_38%,_#0f172a_70%,_#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl px-4 py-5 xl:px-6 xl:py-8 space-y-6">
-        {/* Banner */}
-        <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <img
             src="/summer-camp-banner.jpg"
             alt="Bagong Cabuyao Summer Camp Banner"
-            className="h-auto w-full object-cover"
+            className="w-full h-[220px] md:h-[260px] object-cover object-center"
           />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-[#020617]" />
         </div>
 
-        {/* Header */}
         <div className="sticky top-0 z-20 rounded-[28px] border border-white/10 bg-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="rounded-t-[28px] bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-fuchsia-500/20 px-6 py-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -181,18 +207,24 @@ export default function DashboardPage() {
                   Supervisor Access Only
                 </div>
 
+                <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
+                  Signed in as:{" "}
+                  <span className="font-semibold text-cyan-100">
+                    {session?.user?.email}
+                  </span>
+                </div>
+
                 <button
-                  onClick={() => loadData(true)}
-                  className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="rounded-full border border-red-300/20 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-400/20"
                 >
-                  Refresh Data
+                  Log out
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Top cards */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div className="rounded-[28px] border border-white/10 bg-white/5 px-6 py-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl">
             <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-200">
@@ -220,9 +252,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Main grid */}
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-4 items-start">
-          {/* Respondents */}
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl xl:col-span-1 h-[520px] flex flex-col">
             <h2 className="mb-4 text-2xl font-bold text-white">Respondents</h2>
 
@@ -256,10 +286,11 @@ export default function DashboardPage() {
                     key={person.id}
                     type="button"
                     onClick={() => setSelected(person)}
-                    className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${selected?.id === person.id
+                    className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                      selected?.id === person.id
                         ? "border-cyan-300/30 bg-cyan-400/10"
                         : "border-white/10 bg-white/5 hover:bg-white/10"
-                      }`}
+                    }`}
                   >
                     <p className="font-semibold text-white">
                       {person.fullName || "Unnamed"}
@@ -285,7 +316,6 @@ export default function DashboardPage() {
             emptyText="No talent ranking yet."
           />
 
-          {/* Details */}
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl xl:col-span-1 h-[520px] flex flex-col">
             <h2 className="mb-4 text-2xl font-bold text-white">
               Participant Details
@@ -302,10 +332,7 @@ export default function DashboardPage() {
                 <Field label="Age" value={selected.age} />
                 <Field label="Sex" value={selected.sex} />
                 <Field label="Complete Address" value={selected.address} />
-                <Field
-                  label="Parent/Guardian Name"
-                  value={selected.guardianName}
-                />
+                <Field label="Parent/Guardian Name" value={selected.guardianName} />
                 <Field label="Relationship" value={selected.relationship} />
                 <Field label="Contact Number" value={selected.contactNumber} />
                 <Field
@@ -350,29 +377,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Credits */}
         <div className="rounded-[28px] border border-white/10 bg-white/5 px-6 py-6 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl">
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <img
-              src="/youth.png"
-              alt="Youth Development Affairs Office"
-              className="h-12 w-auto object-contain opacity-95"
-            />
-            <img
-              src="/sports.png"
-              alt="Cabuyao Sports Committee"
-              className="h-12 w-auto object-contain opacity-95"
-            />
-            <img
-              src="/seal.png"
-              alt="City of Cabuyao Seal"
-              className="h-12 w-auto object-contain opacity-95"
-            />
-            <img
-              src="/bagongcabuyao.png"
-              alt="Bagong Cabuyao"
-              className="h-12 w-auto object-contain opacity-95"
-            />
+            <img src="/youth.png" alt="Youth" className="h-12 w-auto object-contain opacity-95" />
+            <img src="/sports.png" alt="Sports" className="h-12 w-auto object-contain opacity-95" />
+            <img src="/seal.png" alt="Seal" className="h-12 w-auto object-contain opacity-95" />
+            <img src="/bagongcabuyao.png" alt="Bagong Cabuyao" className="h-12 w-auto object-contain opacity-95" />
           </div>
 
           <div className="mt-4 text-center">
@@ -380,7 +390,7 @@ export default function DashboardPage() {
               Developed by <span className="font-semibold text-cyan-300">A. Fojas</span>
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Bagong Cabuyao Summer Camp 2026
+              Bagong Cabuyao Sports Summer Camp 2026
             </p>
           </div>
         </div>
