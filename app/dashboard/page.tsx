@@ -178,13 +178,12 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#312e81,_#111827_38%,_#0f172a_70%,_#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl px-4 py-5 xl:px-6 xl:py-8 space-y-6">
-        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <img
             src="/summer-camp-banner.jpg"
             alt="Bagong Cabuyao Summer Camp Banner"
-            className="w-full h-[220px] md:h-[260px] object-cover object-center"
+            className="h-auto w-full object-cover"
           />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-[#020617]" />
         </div>
 
         <div className="sticky top-0 z-20 rounded-[28px] border border-white/10 bg-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
