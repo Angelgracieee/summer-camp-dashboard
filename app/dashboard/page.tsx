@@ -410,7 +410,7 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-300">
               Developed by <span className="font-semibold text-cyan-300">A. Fojas</span>
             </p>
-            <p className="mt-1 text-xs text-slate-500">Bagong Cabuyao Sports Summer Camp 2026</p>
+            <p className="mt-1 text-xs text-slate-500">Bagong Cabuyao Summer Camp 2026</p>
           </div>
         </div>
       </div>
