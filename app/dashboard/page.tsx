@@ -69,8 +69,8 @@ export default function DashboardPage() {
   } | null>(null);
 
   const [modalSexFilter, setModalSexFilter] = useState<"All" | "Male" | "Female">("All");
-  // Defaulting to the first bracket since "Any Age" is removed
-  const [modalAgeFilter, setModalAgeFilter] = useState<"7-10" | "11-14" | "15-17">("7-10");
+  // Added "Any Age" to the type and set it as default
+  const [modalAgeFilter, setModalAgeFilter] = useState<"Any Age" | "7-10" | "11-14" | "15-17">("Any Age");
 
   async function loadData(showLoader = false) {
     try {
@@ -175,7 +175,9 @@ export default function DashboardPage() {
       
       let ageMatch = false;
       const ageNum = parseInt(p.age);
-      if (modalAgeFilter === "7-10") ageMatch = ageNum >= 7 && ageNum <= 10;
+      // Logic update for "Any Age"
+      if (modalAgeFilter === "Any Age") ageMatch = true;
+      else if (modalAgeFilter === "7-10") ageMatch = ageNum >= 7 && ageNum <= 10;
       else if (modalAgeFilter === "11-14") ageMatch = ageNum >= 11 && ageNum <= 14;
       else if (modalAgeFilter === "15-17") ageMatch = ageNum >= 15 && ageNum <= 17;
 
@@ -333,7 +335,7 @@ export default function DashboardPage() {
             onItemClick={(name) => {
                 setModalData({ name, type: "Sports" });
                 setModalSexFilter("All");
-                setModalAgeFilter("7-10");
+                setModalAgeFilter("Any Age");
             }}
           />
 
@@ -344,7 +346,7 @@ export default function DashboardPage() {
             onItemClick={(name) => {
                 setModalData({ name, type: "Talent" });
                 setModalSexFilter("All");
-                setModalAgeFilter("7-10");
+                setModalAgeFilter("Any Age");
             }}
           />
 
@@ -466,8 +468,18 @@ export default function DashboardPage() {
                     </button>
                 </div>
 
-                {/* Age Filter: Strictly 7-10, 11-14, 15-17*/}
+                {/* Age Filter: Any Age, 7-10, 11-14, 15-17*/}
                 <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={() => setModalAgeFilter("Any Age")}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                            modalAgeFilter === "Any Age" 
+                            ? "bg-white text-slate-900 border-white" 
+                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                        }`}
+                    >
+                        ANY AGE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "Any Age" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
+                    </button>
                     <button
                         onClick={() => setModalAgeFilter("7-10")}
                         className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
