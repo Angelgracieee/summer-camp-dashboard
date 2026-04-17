@@ -69,6 +69,8 @@ export default function DashboardPage() {
   } | null>(null);
 
   const [modalSexFilter, setModalSexFilter] = useState<"All" | "Male" | "Female">("All");
+  // Defaulting to the first bracket since "Any Age" is removed
+  const [modalAgeFilter, setModalAgeFilter] = useState<"7-10" | "11-14" | "15-17">("7-10");
 
   async function loadData(showLoader = false) {
     try {
@@ -144,17 +146,16 @@ export default function DashboardPage() {
     });
   }, [data, search, filter]);
 
-  // Logic for the Modal Stats and List
-  const { stats, participantsByChoice } = useMemo(() => {
+  const { stats, ageStats, participantsByChoice } = useMemo(() => {
     if (!modalData || !data) return { 
         stats: { all: 0, male: 0, female: 0 }, 
+        ageStats: { "7-10": 0, "11-14": 0, "15-17": 0 },
         participantsByChoice: { first: [], second: [], third: [] } 
     };
 
     const itemName = modalData.name;
     const prefKey = modalData.type === "Sports" ? "sportPreferences" : "talentPreferences";
 
-    // All people who picked this item at all (1st, 2nd, or 3rd)
     const baseList = data.respondents.filter((p) => p[prefKey].includes(itemName));
     
     const counts = {
@@ -163,21 +164,34 @@ export default function DashboardPage() {
         female: baseList.filter(p => p.sex.toLowerCase() === "female").length
     };
 
-    // Filtered list based on current active tab
+    const ageCounts = {
+        "7-10": baseList.filter(p => parseInt(p.age) >= 7 && parseInt(p.age) <= 10).length,
+        "11-14": baseList.filter(p => parseInt(p.age) >= 11 && parseInt(p.age) <= 14).length,
+        "15-17": baseList.filter(p => parseInt(p.age) >= 15 && parseInt(p.age) <= 17).length
+    };
+
     const filteredList = baseList.filter((p) => {
-      if (modalSexFilter === "All") return true;
-      return p.sex.toLowerCase() === modalSexFilter.toLowerCase();
+      const sexMatch = modalSexFilter === "All" || p.sex.toLowerCase() === modalSexFilter.toLowerCase();
+      
+      let ageMatch = false;
+      const ageNum = parseInt(p.age);
+      if (modalAgeFilter === "7-10") ageMatch = ageNum >= 7 && ageNum <= 10;
+      else if (modalAgeFilter === "11-14") ageMatch = ageNum >= 11 && ageNum <= 14;
+      else if (modalAgeFilter === "15-17") ageMatch = ageNum >= 15 && ageNum <= 17;
+
+      return sexMatch && ageMatch;
     });
 
     return {
       stats: counts,
+      ageStats: ageCounts,
       participantsByChoice: {
         first: filteredList.filter((p) => p[prefKey][0] === itemName),
         second: filteredList.filter((p) => p[prefKey][1] === itemName),
         third: filteredList.filter((p) => p[prefKey][2] === itemName),
       }
     };
-  }, [modalData, data, modalSexFilter]);
+  }, [modalData, data, modalSexFilter, modalAgeFilter]);
 
   if (status === "loading" || loading) {
     return (
@@ -211,7 +225,7 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="mb-6 rounded-[28px] border border-white/10 bg-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="sticky top-0 z-20 rounded-[28px] border border-white/10 bg-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="rounded-t-[28px] bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-fuchsia-500/20 px-6 py-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
@@ -244,6 +258,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* --- Stats Row --- */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div className="rounded-[28px] border border-white/10 bg-white/5 px-6 py-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl">
             <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-200">As Of</p>
@@ -263,6 +278,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* --- Main Content Grid --- */}
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-4 items-start">
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl xl:col-span-1 h-[520px] flex flex-col">
             <h2 className="mb-4 text-2xl font-bold text-white">Respondents</h2>
@@ -317,6 +333,7 @@ export default function DashboardPage() {
             onItemClick={(name) => {
                 setModalData({ name, type: "Sports" });
                 setModalSexFilter("All");
+                setModalAgeFilter("7-10");
             }}
           />
 
@@ -327,6 +344,7 @@ export default function DashboardPage() {
             onItemClick={(name) => {
                 setModalData({ name, type: "Talent" });
                 setModalSexFilter("All");
+                setModalAgeFilter("7-10");
             }}
           />
 
@@ -378,6 +396,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* --- Footer Branding --- */}
         <div className="rounded-[28px] border border-white/10 bg-white/5 px-6 py-6 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl">
           <div className="flex flex-wrap items-center justify-center gap-4">
             <img src="/youth.png" alt="Youth" className="h-12 w-auto object-contain opacity-95" />
@@ -397,7 +416,7 @@ export default function DashboardPage() {
       {/* --- Preference Modal --- */}
       {modalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-[32px] border border-white/20 bg-slate-900 shadow-2xl flex flex-col">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-[32px] border border-white/20 bg-slate-900 shadow-2xl flex flex-col">
             <div className="border-b border-white/10 bg-white/5 px-6 py-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -412,38 +431,74 @@ export default function DashboardPage() {
                 </button>
               </div>
               
-              {/* Noticable Filter Buttons & Totals */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                    onClick={() => setModalSexFilter("All")}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 font-bold text-sm ${
-                        modalSexFilter === "All" 
-                        ? "bg-white text-slate-900 border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
-                        : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
-                    }`}
-                >
-                    ALL <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "All" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
-                </button>
-                <button
-                    onClick={() => setModalSexFilter("Male")}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 font-bold text-sm ${
-                        modalSexFilter === "Male" 
-                        ? "bg-blue-500 text-white border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
-                        : "bg-blue-500/5 text-blue-400 border-blue-500/20 hover:border-blue-500/40"
-                    }`}
-                >
-                    MALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Male" ? "bg-white text-blue-600" : "bg-blue-500/20 text-blue-300"}`}>{stats.male}</span>
-                </button>
-                <button
-                    onClick={() => setModalSexFilter("Female")}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 font-bold text-sm ${
-                        modalSexFilter === "Female" 
-                        ? "bg-fuchsia-500 text-white border-fuchsia-400 shadow-[0_0_15px_rgba(217,70,239,0.4)]" 
-                        : "bg-fuchsia-500/5 text-fuchsia-400 border-fuchsia-500/20 hover:border-fuchsia-500/40"
-                    }`}
-                >
-                    FEMALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Female" ? "bg-white text-fuchsia-600" : "bg-fuchsia-500/20 text-fuchsia-300"}`}>{stats.female}</span>
-                </button>
+              <div className="space-y-3">
+                {/* Sex Filter */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={() => setModalSexFilter("All")}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                            modalSexFilter === "All" 
+                            ? "bg-white text-slate-900 border-white" 
+                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                        }`}
+                    >
+                        ALL <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "All" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
+                    </button>
+                    <button
+                        onClick={() => setModalSexFilter("Male")}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                            modalSexFilter === "Male" 
+                            ? "bg-blue-500 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]" 
+                            : "bg-blue-500/5 text-blue-400 border-blue-500/20"
+                        }`}
+                    >
+                        MALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Male" ? "bg-white text-blue-600" : "bg-blue-500/20 text-blue-300"}`}>{stats.male}</span>
+                    </button>
+                    <button
+                        onClick={() => setModalSexFilter("Female")}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                            modalSexFilter === "Female" 
+                            ? "bg-fuchsia-500 text-white border-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.3)]" 
+                            : "bg-fuchsia-500/5 text-fuchsia-400 border-fuchsia-500/20"
+                        }`}
+                    >
+                        FEMALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Female" ? "bg-white text-fuchsia-600" : "bg-fuchsia-500/20 text-fuchsia-300"}`}>{stats.female}</span>
+                    </button>
+                </div>
+
+                {/* Age Filter: Strictly 7-10, 11-14, 15-17*/}
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={() => setModalAgeFilter("7-10")}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                            modalAgeFilter === "7-10" 
+                            ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]" 
+                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                        }`}
+                    >
+                        7-10 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "7-10" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["7-10"]}</span>
+                    </button>
+                    <button
+                        onClick={() => setModalAgeFilter("11-14")}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                            modalAgeFilter === "11-14" 
+                            ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]" 
+                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                        }`}
+                    >
+                        11-14 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "11-14" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["11-14"]}</span>
+                    </button>
+                    <button
+                        onClick={() => setModalAgeFilter("15-17")}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                            modalAgeFilter === "15-17" 
+                            ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(244,63,94,0.3)]" 
+                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                        }`}
+                    >
+                        15-17 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "15-17" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["15-17"]}</span>
+                    </button>
+                </div>
               </div>
             </div>
 
@@ -480,12 +535,14 @@ function ModalSection({ title, participants, color }: { title: string, participa
     <div>
       <h4 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{title} ({participants.length})</h4>
       {participants.length === 0 ? (
-        <p className="text-sm text-slate-500 italic">No participants in this selection.</p>
+        <p className="text-sm text-slate-500 italic">No participants match these filters.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {participants.map((p, index) => (
             <div key={p.id} className={`rounded-xl border p-3 text-sm font-medium ${color}`}>
-              {index + 1}. {p.fullName}
+              <div className="flex justify-between items-center">
+                <span>{index + 1}. {p.fullName}</span>
+              </div>
             </div>
           ))}
         </div>
