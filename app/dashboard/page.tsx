@@ -69,7 +69,6 @@ export default function DashboardPage() {
   } | null>(null);
 
   const [modalSexFilter, setModalSexFilter] = useState<"All" | "Male" | "Female">("All");
-  // Added "Any Age" to the type and set it as default
   const [modalAgeFilter, setModalAgeFilter] = useState<"Any Age" | "7-10" | "11-14" | "15-17">("Any Age");
 
   async function loadData(showLoader = false) {
@@ -175,7 +174,6 @@ export default function DashboardPage() {
       
       let ageMatch = false;
       const ageNum = parseInt(p.age);
-      // Logic update for "Any Age"
       if (modalAgeFilter === "Any Age") ageMatch = true;
       else if (modalAgeFilter === "7-10") ageMatch = ageNum >= 7 && ageNum <= 10;
       else if (modalAgeFilter === "11-14") ageMatch = ageNum >= 11 && ageNum <= 14;
@@ -307,7 +305,7 @@ export default function DashboardPage() {
               {filteredRespondents.length === 0 ? (
                 <p className="text-sm text-slate-400">No respondents found.</p>
               ) : (
-                filteredRespondents.map((person) => (
+                filteredRespondents.map((person, index) => (
                   <button
                     key={person.id}
                     type="button"
@@ -318,7 +316,9 @@ export default function DashboardPage() {
                         : "border-white/10 bg-white/5 hover:bg-white/10"
                     }`}
                   >
-                    <p className="font-semibold text-white">{person.fullName || "Unnamed"}</p>
+                    <p className="font-semibold text-white">
+                      {index + 1}. {person.fullName || "Unnamed"}
+                    </p>
                     <p className="mt-1 text-xs uppercase tracking-wide text-cyan-200">
                       {person.category || "No category"}
                     </p>
@@ -434,7 +434,6 @@ export default function DashboardPage() {
               </div>
               
               <div className="space-y-3">
-                {/* Sex Filter */}
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setModalSexFilter("All")}
@@ -468,7 +467,6 @@ export default function DashboardPage() {
                     </button>
                 </div>
 
-                {/* Age Filter: Any Age, 7-10, 11-14, 15-17*/}
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setModalAgeFilter("Any Age")}
