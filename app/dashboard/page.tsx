@@ -46,6 +46,7 @@ type RankingProps = {
   title: string;
   items: RankingItem[];
   emptyText: string;
+  onItemClick: (name: string, type: "Sports" | "Talent") => void;
 };
 
 type FieldProps = {
@@ -61,6 +62,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+
+  const [modalData, setModalData] = useState<{
+    name: string;
+    type: "Sports" | "Talent";
+  } | null>(null);
+
+  const [modalSexFilter, setModalSexFilter] = useState<"All" | "Male" | "Female">("All");
 
   async function loadData(showLoader = false) {
     try {
@@ -95,11 +103,7 @@ export default function DashboardPage() {
       if (json.respondents.length > 0) {
         setSelected((prev) => {
           if (!prev) return json.respondents[0];
-
-          const existing = json.respondents.find(
-            (person) => person.id === prev.id
-          );
-
+          const existing = json.respondents.find((p) => p.id === prev.id);
           return existing || json.respondents[0];
         });
       } else {
@@ -115,42 +119,65 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-  if (status === "loading") return;
+    if (status === "loading") return;
+    if (status === "unauthenticated") {
+      window.location.href = "/login";
+      return;
+    }
 
-  if (status === "unauthenticated") {
-    window.location.href = "/login";
-    return;
-  }
-
-  loadData(true);
-
-    const interval = setInterval(() => {
-      loadData(false);
-    }, 10000);
-
+    loadData(true);
+    const interval = setInterval(() => loadData(false), 10000);
     return () => clearInterval(interval);
   }, [status]);
 
   const filteredRespondents = useMemo(() => {
     if (!data?.respondents) return [];
-
     return data.respondents.filter((person) => {
-      const matchesSearch = person.fullName
-        .toLowerCase()
-        .includes(search.toLowerCase());
-
+      const matchesSearch = person.fullName.toLowerCase().includes(search.toLowerCase());
       const category = person.category.toLowerCase();
-
       const matchesFilter =
         filter === "All" ||
         (filter === "Sports" && category === "sports workshop") ||
         (filter === "Talent" && category === "talent workshop") ||
-        (filter === "Both" &&
-          category === "both (sports and talent) workshop");
-
+        (filter === "Both" && category === "both (sports and talent) workshop");
       return matchesSearch && matchesFilter;
     });
   }, [data, search, filter]);
+
+  // Logic for the Modal Stats and List
+  const { stats, participantsByChoice } = useMemo(() => {
+    if (!modalData || !data) return { 
+        stats: { all: 0, male: 0, female: 0 }, 
+        participantsByChoice: { first: [], second: [], third: [] } 
+    };
+
+    const itemName = modalData.name;
+    const prefKey = modalData.type === "Sports" ? "sportPreferences" : "talentPreferences";
+
+    // All people who picked this item at all (1st, 2nd, or 3rd)
+    const baseList = data.respondents.filter((p) => p[prefKey].includes(itemName));
+    
+    const counts = {
+        all: baseList.length,
+        male: baseList.filter(p => p.sex.toLowerCase() === "male").length,
+        female: baseList.filter(p => p.sex.toLowerCase() === "female").length
+    };
+
+    // Filtered list based on current active tab
+    const filteredList = baseList.filter((p) => {
+      if (modalSexFilter === "All") return true;
+      return p.sex.toLowerCase() === modalSexFilter.toLowerCase();
+    });
+
+    return {
+      stats: counts,
+      participantsByChoice: {
+        first: filteredList.filter((p) => p[prefKey][0] === itemName),
+        second: filteredList.filter((p) => p[prefKey][1] === itemName),
+        third: filteredList.filter((p) => p[prefKey][2] === itemName),
+      }
+    };
+  }, [modalData, data, modalSexFilter]);
 
   if (status === "loading" || loading) {
     return (
@@ -161,9 +188,7 @@ export default function DashboardPage() {
   }
 
   if (status === "unauthenticated") {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
+    if (typeof window !== "undefined") window.location.href = "/login";
     return null;
   }
 
@@ -205,15 +230,9 @@ export default function DashboardPage() {
                 <div className="rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200">
                   Supervisor Access Only
                 </div>
-                
-
                 <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
-                  Signed in as:{" "}
-                  <span className="font-semibold text-cyan-100">
-                    {session?.user?.email}
-                  </span>
+                  Signed in as: <span className="font-semibold text-cyan-100">{session?.user?.email}</span>
                 </div>
-
                 <button
                   onClick={() => signOut({ callbackUrl: "/login" })}
                   className="rounded-full border border-red-300/20 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-400/20"
@@ -227,22 +246,14 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div className="rounded-[28px] border border-white/10 bg-white/5 px-6 py-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl">
-            <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-200">
-              As Of
-            </p>
+            <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-200">As Of</p>
             <p className="text-xl font-bold text-white">{data.asOf || "-"}</p>
           </div>
 
           <div className="rounded-[28px] border border-white/10 bg-white/5 px-6 py-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl">
-            <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-200">
-              Total Responses
-            </p>
-
+            <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-200">Total Responses</p>
             <div className="flex items-center justify-between gap-4">
-              <p className="text-4xl font-extrabold text-white">
-                {data.totalResponses}
-              </p>
-
+              <p className="text-4xl font-extrabold text-white">{data.totalResponses}</p>
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right text-sm text-slate-300">
                 <p>Sports ({data.sportsRespondents})</p>
                 <p>Talent ({data.talentRespondents})</p>
@@ -255,7 +266,6 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-4 items-start">
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl xl:col-span-1 h-[520px] flex flex-col">
             <h2 className="mb-4 text-2xl font-bold text-white">Respondents</h2>
-
             <div className="space-y-3">
               <input
                 type="text"
@@ -264,7 +274,6 @@ export default function DashboardPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-cyan-300/30"
               />
-
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
@@ -276,7 +285,6 @@ export default function DashboardPage() {
                 <option className="text-black">Both</option>
               </select>
             </div>
-
             <div className="mt-4 flex-1 overflow-y-auto space-y-2 pr-1 custom-scroll">
               {filteredRespondents.length === 0 ? (
                 <p className="text-sm text-slate-400">No respondents found.</p>
@@ -292,9 +300,7 @@ export default function DashboardPage() {
                         : "border-white/10 bg-white/5 hover:bg-white/10"
                     }`}
                   >
-                    <p className="font-semibold text-white">
-                      {person.fullName || "Unnamed"}
-                    </p>
+                    <p className="font-semibold text-white">{person.fullName || "Unnamed"}</p>
                     <p className="mt-1 text-xs uppercase tracking-wide text-cyan-200">
                       {person.category || "No category"}
                     </p>
@@ -308,23 +314,26 @@ export default function DashboardPage() {
             title="Sports Ranking"
             items={data.sportsRanking}
             emptyText="No sports ranking yet."
+            onItemClick={(name) => {
+                setModalData({ name, type: "Sports" });
+                setModalSexFilter("All");
+            }}
           />
 
           <Ranking
             title="Talent Ranking"
             items={data.talentRanking}
             emptyText="No talent ranking yet."
+            onItemClick={(name) => {
+                setModalData({ name, type: "Talent" });
+                setModalSexFilter("All");
+            }}
           />
 
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl xl:col-span-1 h-[520px] flex flex-col">
-            <h2 className="mb-4 text-2xl font-bold text-white">
-              Participant Details
-            </h2>
-
+            <h2 className="mb-4 text-2xl font-bold text-white">Participant Details</h2>
             {!selected ? (
-              <p className="text-sm text-slate-400">
-                Select a participant name to view full details.
-              </p>
+              <p className="text-sm text-slate-400">Select a participant name to view full details.</p>
             ) : (
               <div className="space-y-3 text-sm overflow-y-auto flex-1 pr-1 custom-scroll">
                 <Field label="Full Name" value={selected.fullName} />
@@ -335,17 +344,12 @@ export default function DashboardPage() {
                 <Field label="Parent/Guardian Name" value={selected.guardianName} />
                 <Field label="Relationship" value={selected.relationship} />
                 <Field label="Contact Number" value={selected.contactNumber} />
-                <Field
-                  label="Email Address"
-                  value={selected.guardianEmail || selected.email}
-                />
+                <Field label="Email Address" value={selected.guardianEmail || selected.email} />
                 <Field label="Chosen Category" value={selected.category} />
 
                 {selected.sportPreferences.length > 0 && (
                   <div className="rounded-2xl border border-cyan-300/10 bg-cyan-400/10 px-4 py-3">
-                    <p className="mb-2 font-semibold uppercase tracking-wide text-cyan-200">
-                      Sports Preferences
-                    </p>
+                    <p className="mb-2 font-semibold uppercase tracking-wide text-cyan-200">Sports Preferences</p>
                     <div className="space-y-1 text-slate-200">
                       {selected.sportPreferences.map((item, index) => (
                         <p key={`sport-${index}`}>
@@ -358,9 +362,7 @@ export default function DashboardPage() {
 
                 {selected.talentPreferences.length > 0 && (
                   <div className="rounded-2xl border border-fuchsia-300/10 bg-fuchsia-400/10 px-4 py-3">
-                    <p className="mb-2 font-semibold uppercase tracking-wide text-fuchsia-200">
-                      Talent Preferences
-                    </p>
+                    <p className="mb-2 font-semibold uppercase tracking-wide text-fuchsia-200">Talent Preferences</p>
                     <div className="space-y-1 text-slate-200">
                       {selected.talentPreferences.map((item, index) => (
                         <p key={`talent-${index}`}>
@@ -370,7 +372,6 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
-
                 <Field label="Timestamp" value={selected.formattedTimestamp} />
               </div>
             )}
@@ -384,61 +385,136 @@ export default function DashboardPage() {
             <img src="/seal.png" alt="Seal" className="h-12 w-auto object-contain opacity-95" />
             <img src="/bagongcabuyao.png" alt="Bagong Cabuyao" className="h-12 w-auto object-contain opacity-95" />
           </div>
-
           <div className="mt-4 text-center">
             <p className="text-sm text-slate-300">
               Developed by <span className="font-semibold text-cyan-300">A. Fojas</span>
             </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Bagong Cabuyao Sports Summer Camp 2026
-            </p>
+            <p className="mt-1 text-xs text-slate-500">Bagong Cabuyao Sports Summer Camp 2026</p>
           </div>
         </div>
       </div>
 
+      {/* --- Preference Modal --- */}
+      {modalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-[32px] border border-white/20 bg-slate-900 shadow-2xl flex flex-col">
+            <div className="border-b border-white/10 bg-white/5 px-6 py-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-white">{modalData.name}</h3>
+                  <p className="text-xs uppercase tracking-widest text-cyan-300">{modalData.type} Interest Breakdown</p>
+                </div>
+                <button 
+                  onClick={() => setModalData(null)}
+                  className="rounded-full bg-white/10 p-2 hover:bg-white/20 transition text-white"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {/* Noticable Filter Buttons & Totals */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                    onClick={() => setModalSexFilter("All")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 font-bold text-sm ${
+                        modalSexFilter === "All" 
+                        ? "bg-white text-slate-900 border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
+                        : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                    }`}
+                >
+                    ALL <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "All" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
+                </button>
+                <button
+                    onClick={() => setModalSexFilter("Male")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 font-bold text-sm ${
+                        modalSexFilter === "Male" 
+                        ? "bg-blue-500 text-white border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
+                        : "bg-blue-500/5 text-blue-400 border-blue-500/20 hover:border-blue-500/40"
+                    }`}
+                >
+                    MALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Male" ? "bg-white text-blue-600" : "bg-blue-500/20 text-blue-300"}`}>{stats.male}</span>
+                </button>
+                <button
+                    onClick={() => setModalSexFilter("Female")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 font-bold text-sm ${
+                        modalSexFilter === "Female" 
+                        ? "bg-fuchsia-500 text-white border-fuchsia-400 shadow-[0_0_15px_rgba(217,70,239,0.4)]" 
+                        : "bg-fuchsia-500/5 text-fuchsia-400 border-fuchsia-500/20 hover:border-fuchsia-500/40"
+                    }`}
+                >
+                    FEMALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Female" ? "bg-white text-fuchsia-600" : "bg-fuchsia-500/20 text-fuchsia-300"}`}>{stats.female}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll">
+              <ModalSection title="1st Choice" participants={participantsByChoice.first} color="border-cyan-500/30 bg-cyan-500/5 text-cyan-200" />
+              <ModalSection title="2nd Choice" participants={participantsByChoice.second} color="border-blue-500/30 bg-blue-500/5 text-blue-200" />
+              <ModalSection title="3rd Choice" participants={participantsByChoice.third} color="border-slate-500/30 bg-slate-500/5 text-slate-300" />
+            </div>
+            
+            <div className="border-t border-white/10 bg-white/5 px-6 py-4 text-center">
+              <button 
+                onClick={() => setModalData(null)}
+                className="rounded-xl bg-white/10 px-8 py-2.5 text-sm font-bold hover:bg-white/20 transition-all border border-white/10"
+              >
+                Close View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx global>{`
-        .custom-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .custom-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .custom-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 9999px;
-        }
-
-        .custom-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.3);
-        }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 9999px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
       `}</style>
     </main>
   );
 }
 
-function Ranking({ title, items, emptyText }: RankingProps) {
+function ModalSection({ title, participants, color }: { title: string, participants: Respondent[], color: string }) {
+  return (
+    <div>
+      <h4 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{title} ({participants.length})</h4>
+      {participants.length === 0 ? (
+        <p className="text-sm text-slate-500 italic">No participants in this selection.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {participants.map((p, index) => (
+            <div key={p.id} className={`rounded-xl border p-3 text-sm font-medium ${color}`}>
+              {index + 1}. {p.fullName}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Ranking({ title, items, emptyText, onItemClick }: RankingProps) {
   return (
     <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl xl:col-span-1 h-[520px] flex flex-col">
       <h2 className="mb-4 text-2xl font-bold text-white">{title}</h2>
-
       {items.length === 0 ? (
         <p className="text-sm text-slate-400">{emptyText}</p>
       ) : (
         <div className="space-y-2 overflow-y-auto flex-1 pr-1 custom-scroll">
           {items.map((item) => (
-            <div
+            <button
               key={`${item.rank}-${item.name}`}
-              className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+              onClick={() => onItemClick(item.name, title.includes("Sports") ? "Sports" : "Talent")}
+              className="group flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm transition hover:border-cyan-300/40 hover:bg-cyan-400/5"
             >
-              <span className="font-medium text-white">
+              <span className="font-medium text-white group-hover:text-cyan-200 transition-colors">
                 {item.rank}. {item.name}
               </span>
-              <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+              <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-100 group-hover:bg-cyan-400/20 group-hover:border-cyan-300/40 transition">
                 {item.votes}
               </span>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -449,9 +525,7 @@ function Ranking({ title, items, emptyText }: RankingProps) {
 function Field({ label, value }: FieldProps) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-      <p className="text-xs uppercase tracking-wide text-cyan-200">
-        {label}
-      </p>
+      <p className="text-xs uppercase tracking-wide text-cyan-200">{label}</p>
       <p className="mt-1 text-sm font-medium text-white">{value || ""}</p>
     </div>
   );
