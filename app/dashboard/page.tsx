@@ -563,13 +563,12 @@ export default function DashboardPage() {
 
 function ModalSection({ title, participants, color }: { title: string, participants: Respondent[], color: string }) {
   return (
-    /* We use flex-col and overflow-hidden to keep the header fixed at the top */
-    <div className="flex flex-col h-[450px] border border-white/5 bg-white/5 rounded-3xl p-4 overflow-hidden">
+    /* We use h-[300px] for mobile and lg:h-[450px] for desktop */
+    <div className="flex flex-col h-[300px] lg:h-[450px] border border-white/5 bg-white/5 rounded-3xl p-4 overflow-hidden">
       <h4 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400 border-l-4 border-white/20 pl-3 shrink-0">
         {title} ({participants.length})
       </h4>
 
-      {/* This div is the one that actually scrolls */}
       <div className="flex-1 overflow-y-auto pr-2 custom-scroll space-y-2">
         {participants.length === 0 ? (
           <p className="text-sm text-slate-500 italic p-4 bg-white/5 rounded-2xl">No matches.</p>
@@ -577,7 +576,7 @@ function ModalSection({ title, participants, color }: { title: string, participa
           participants.map((p, index) => (
             <div 
               key={p.id} 
-              className={`rounded-xl border p-3 text-sm font-medium transition-all hover:bg-white/5 ${color}`}
+              className={`rounded-xl border p-3 text-sm font-medium transition-all ${color}`}
             >
               <div className="flex justify-between items-center">
                 <span className="truncate">{index + 1}. {p.fullName}</span>
