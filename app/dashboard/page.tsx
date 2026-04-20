@@ -70,6 +70,7 @@ export default function DashboardPage() {
 
   const [modalSexFilter, setModalSexFilter] = useState<"All" | "Male" | "Female">("All");
   const [modalAgeFilter, setModalAgeFilter] = useState<"Any Age" | "7-10" | "11-14" | "15-17">("Any Age");
+  const [modalSearch, setModalSearch] = useState("");
 
   async function loadData(showLoader = false) {
     try {
@@ -171,6 +172,7 @@ export default function DashboardPage() {
 
     const filteredList = baseList.filter((p) => {
       const sexMatch = modalSexFilter === "All" || p.sex.toLowerCase() === modalSexFilter.toLowerCase();
+      const searchMatch = p.fullName.toLowerCase().includes(modalSearch.toLowerCase());
       
       let ageMatch = false;
       const ageNum = parseInt(p.age);
@@ -179,7 +181,7 @@ export default function DashboardPage() {
       else if (modalAgeFilter === "11-14") ageMatch = ageNum >= 11 && ageNum <= 14;
       else if (modalAgeFilter === "15-17") ageMatch = ageNum >= 15 && ageNum <= 17;
 
-      return sexMatch && ageMatch;
+      return sexMatch && ageMatch && searchMatch;
     });
 
     return {
@@ -191,7 +193,7 @@ export default function DashboardPage() {
         third: filteredList.filter((p) => p[prefKey][2] === itemName),
       }
     };
-  }, [modalData, data, modalSexFilter, modalAgeFilter]);
+  }, [modalData, data, modalSexFilter, modalAgeFilter, modalSearch]);
 
   if (status === "loading" || loading) {
     return (
@@ -336,6 +338,7 @@ export default function DashboardPage() {
                 setModalData({ name, type: "Sports" });
                 setModalSexFilter("All");
                 setModalAgeFilter("Any Age");
+                setModalSearch("");
             }}
           />
 
@@ -347,6 +350,7 @@ export default function DashboardPage() {
                 setModalData({ name, type: "Talent" });
                 setModalSexFilter("All");
                 setModalAgeFilter("Any Age");
+                setModalSearch("");
             }}
           />
 
@@ -418,11 +422,11 @@ export default function DashboardPage() {
       {/* --- Preference Modal --- */}
       {modalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-[32px] border border-white/20 bg-slate-900 shadow-2xl flex flex-col">
+          <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-[32px] border border-white/20 bg-slate-900 shadow-2xl flex flex-col">
             <div className="border-b border-white/10 bg-white/5 px-6 py-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-white">{modalData.name}</h3>
+                  <h3 className="text-2xl font-bold text-white">{modalData.name}</h3>
                   <p className="text-xs uppercase tracking-widest text-cyan-300">{modalData.type} Interest Breakdown</p>
                 </div>
                 <button 
@@ -433,89 +437,106 @@ export default function DashboardPage() {
                 </button>
               </div>
               
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    <button
-                        onClick={() => setModalSexFilter("All")}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
-                            modalSexFilter === "All" 
-                            ? "bg-white text-slate-900 border-white" 
-                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
-                        }`}
-                    >
-                        ALL <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "All" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
-                    </button>
-                    <button
-                        onClick={() => setModalSexFilter("Male")}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
-                            modalSexFilter === "Male" 
-                            ? "bg-blue-500 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]" 
-                            : "bg-blue-500/5 text-blue-400 border-blue-500/20"
-                        }`}
-                    >
-                        MALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Male" ? "bg-white text-blue-600" : "bg-blue-500/20 text-blue-300"}`}>{stats.male}</span>
-                    </button>
-                    <button
-                        onClick={() => setModalSexFilter("Female")}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
-                            modalSexFilter === "Female" 
-                            ? "bg-fuchsia-500 text-white border-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.3)]" 
-                            : "bg-fuchsia-500/5 text-fuchsia-400 border-fuchsia-500/20"
-                        }`}
-                    >
-                        FEMALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Female" ? "bg-white text-fuchsia-600" : "bg-fuchsia-500/20 text-fuchsia-300"}`}>{stats.female}</span>
-                    </button>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            onClick={() => setModalSexFilter("All")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                                modalSexFilter === "All" 
+                                ? "bg-white text-slate-900 border-white" 
+                                : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                            }`}
+                        >
+                            ALL <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "All" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
+                        </button>
+                        <button
+                            onClick={() => setModalSexFilter("Male")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                                modalSexFilter === "Male" 
+                                ? "bg-blue-500 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]" 
+                                : "bg-blue-500/5 text-blue-400 border-blue-500/20"
+                            }`}
+                        >
+                            MALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Male" ? "bg-white text-blue-600" : "bg-blue-500/20 text-blue-300"}`}>{stats.male}</span>
+                        </button>
+                        <button
+                            onClick={() => setModalSexFilter("Female")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                                modalSexFilter === "Female" 
+                                ? "bg-fuchsia-500 text-white border-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.3)]" 
+                                : "bg-fuchsia-500/5 text-fuchsia-400 border-fuchsia-500/20"
+                            }`}
+                        >
+                            FEMALE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalSexFilter === "Female" ? "bg-white text-fuchsia-600" : "bg-fuchsia-500/20 text-fuchsia-300"}`}>{stats.female}</span>
+                        </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            onClick={() => setModalAgeFilter("Any Age")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                                modalAgeFilter === "Any Age" 
+                                ? "bg-white text-slate-900 border-white" 
+                                : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                            }`}
+                        >
+                            ANY AGE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "Any Age" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
+                        </button>
+                        <button
+                            onClick={() => setModalAgeFilter("7-10")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                                modalAgeFilter === "7-10" 
+                                ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]" 
+                                : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                            }`}
+                        >
+                            7-10 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "7-10" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["7-10"]}</span>
+                        </button>
+                        <button
+                            onClick={() => setModalAgeFilter("11-14")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                                modalAgeFilter === "11-14" 
+                                ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]" 
+                                : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                            }`}
+                        >
+                            11-14 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "11-14" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["11-14"]}</span>
+                        </button>
+                        <button
+                            onClick={() => setModalAgeFilter("15-17")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
+                                modalAgeFilter === "15-17" 
+                                ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(244,63,94,0.3)]" 
+                                : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
+                            }`}
+                        >
+                            15-17 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "15-17" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["15-17"]}</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <button
-                        onClick={() => setModalAgeFilter("Any Age")}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
-                            modalAgeFilter === "Any Age" 
-                            ? "bg-white text-slate-900 border-white" 
-                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
-                        }`}
-                    >
-                        ANY AGE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "Any Age" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
-                    </button>
-                    <button
-                        onClick={() => setModalAgeFilter("7-10")}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
-                            modalAgeFilter === "7-10" 
-                            ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]" 
-                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
-                        }`}
-                    >
-                        7-10 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "7-10" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["7-10"]}</span>
-                    </button>
-                    <button
-                        onClick={() => setModalAgeFilter("11-14")}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
-                            modalAgeFilter === "11-14" 
-                            ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]" 
-                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
-                        }`}
-                    >
-                        11-14 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "11-14" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["11-14"]}</span>
-                    </button>
-                    <button
-                        onClick={() => setModalAgeFilter("15-17")}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 font-bold text-xs ${
-                            modalAgeFilter === "15-17" 
-                            ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_10px_rgba(244,63,94,0.3)]" 
-                            : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
-                        }`}
-                    >
-                        15-17 <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "15-17" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats["15-17"]}</span>
-                    </button>
+                <div className="flex items-end">
+                    <div className="relative w-full">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="Search names in this ranking..."
+                            value={modalSearch}
+                            onChange={(e) => setModalSearch(e.target.value)}
+                            className="w-full rounded-2xl border border-white/10 bg-white/10 pl-11 pr-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/30 transition-all"
+                        />
+                    </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll">
-              <ModalSection title="1st Choice" participants={participantsByChoice.first} color="border-cyan-500/30 bg-cyan-500/5 text-cyan-200" />
-              <ModalSection title="2nd Choice" participants={participantsByChoice.second} color="border-blue-500/30 bg-blue-500/5 text-blue-200" />
-              <ModalSection title="3rd Choice" participants={participantsByChoice.third} color="border-slate-500/30 bg-slate-500/5 text-slate-300" />
+            <div className="flex-1 overflow-hidden p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+                <ModalSection title="1st Choice" participants={participantsByChoice.first} color="border-cyan-500/30 bg-cyan-500/5 text-cyan-200" />
+                <ModalSection title="2nd Choice" participants={participantsByChoice.second} color="border-blue-500/30 bg-blue-500/5 text-blue-200" />
+                <ModalSection title="3rd Choice" participants={participantsByChoice.third} color="border-slate-500/30 bg-slate-500/5 text-slate-300" />
+              </div>
             </div>
             
             <div className="border-t border-white/10 bg-white/5 px-6 py-4 text-center">
@@ -542,21 +563,29 @@ export default function DashboardPage() {
 
 function ModalSection({ title, participants, color }: { title: string, participants: Respondent[], color: string }) {
   return (
-    <div>
-      <h4 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">{title} ({participants.length})</h4>
-      {participants.length === 0 ? (
-        <p className="text-sm text-slate-500 italic">No participants match these filters.</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {participants.map((p, index) => (
-            <div key={p.id} className={`rounded-xl border p-3 text-sm font-medium ${color}`}>
+    /* We use flex-col and overflow-hidden to keep the header fixed at the top */
+    <div className="flex flex-col h-[450px] border border-white/5 bg-white/5 rounded-3xl p-4 overflow-hidden">
+      <h4 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400 border-l-4 border-white/20 pl-3 shrink-0">
+        {title} ({participants.length})
+      </h4>
+
+      {/* This div is the one that actually scrolls */}
+      <div className="flex-1 overflow-y-auto pr-2 custom-scroll space-y-2">
+        {participants.length === 0 ? (
+          <p className="text-sm text-slate-500 italic p-4 bg-white/5 rounded-2xl">No matches.</p>
+        ) : (
+          participants.map((p, index) => (
+            <div 
+              key={p.id} 
+              className={`rounded-xl border p-3 text-sm font-medium transition-all hover:bg-white/5 ${color}`}
+            >
               <div className="flex justify-between items-center">
-                <span>{index + 1}. {p.fullName}</span>
+                <span className="truncate">{index + 1}. {p.fullName}</span>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }
