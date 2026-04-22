@@ -72,7 +72,6 @@ export default function DashboardPage() {
   const [modalAgeFilter, setModalAgeFilter] = useState<"Any Age" | "7-10" | "11-14" | "15-17">("Any Age");
   const [modalSearch, setModalSearch] = useState("");
 
-  // Re-calculate rankings based on unique human selections to ensure consistency with the Modal
   const data = useMemo(() => {
     if (!rawData) return null;
 
@@ -169,11 +168,12 @@ export default function DashboardPage() {
     });
   }, [data, search, filter]);
 
-  const { stats, ageStats, participantsByChoice } = useMemo(() => {
+  const { stats, ageStats, participantsByChoice, exportData } = useMemo(() => {
     if (!modalData || !data) return { 
         stats: { all: 0, male: 0, female: 0 }, 
         ageStats: { "7-10": 0, "11-14": 0, "15-17": 0 },
-        participantsByChoice: { first: [], second: [], third: [] } 
+        participantsByChoice: { first: [], second: [], third: [] },
+        exportData: []
     };
 
     const itemName = modalData.name;
@@ -207,17 +207,60 @@ export default function DashboardPage() {
       return sexMatch && ageMatch && searchMatch;
     });
 
+    // Sort by Choice Level (1st, 2nd, 3rd)
+    const sortedList = [...filteredList].sort((a, b) => {
+      return a[prefKey].indexOf(itemName) - b[prefKey].indexOf(itemName);
+    });
+
+    const exportRows = sortedList.map((p) => {
+      const choiceIdx = p[prefKey].indexOf(itemName);
+      const labels = ["1st Choice", "2nd Choice", "3rd Choice"];
+      return {
+        "Email (Registrant)": p.email, // Added email before name
+        "Full Name": p.fullName,
+        "Choice Level": labels[choiceIdx] || "N/A",
+        "Birthday": p.birthday,
+        "Age": p.age,
+        "Sex": p.sex,
+        "Complete Address": p.address,
+        "Parent/Guardian": p.guardianName,
+        "Relationship": p.relationship,
+        "Contact Number": p.contactNumber,
+        "Guardian Email": p.guardianEmail || "N/A",
+        "Category": p.category,
+        "Timestamp": p.formattedTimestamp
+      };
+    });
+
     return {
       stats: counts,
       ageStats: ageCounts,
       participantsByChoice: {
-        // Use indexOf to find ONLY the first time they picked the item
         first: filteredList.filter((p) => p[prefKey].indexOf(itemName) === 0),
         second: filteredList.filter((p) => p[prefKey].indexOf(itemName) === 1),
         third: filteredList.filter((p) => p[prefKey].indexOf(itemName) === 2),
-      }
+      },
+      exportData: exportRows
     };
   }, [modalData, data, modalSexFilter, modalAgeFilter, modalSearch]);
+
+  const handleExport = () => {
+    if (exportData.length === 0) return;
+    const headers = Object.keys(exportData[0]);
+    const csvContent = [
+      headers.join(","),
+      ...exportData.map(row => headers.map(h => `"${String(row[h as keyof typeof row]).replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${modalData?.name}_Participants.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   if (status === "loading" || loading) {
     return (
@@ -284,7 +327,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* --- Stats Row --- */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div className="rounded-[28px] border border-white/10 bg-white/5 px-6 py-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl">
             <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-200">As Of</p>
@@ -304,7 +346,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* --- Main Content Grid --- */}
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-4 items-start">
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl xl:col-span-1 h-[520px] flex flex-col">
             <h2 className="mb-4 text-2xl font-bold text-white">Respondents</h2>
@@ -426,7 +467,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* --- Footer Branding --- */}
         <div className="rounded-[28px] border border-white/10 bg-white/5 px-6 py-6 shadow-[0_8px_30px_rgba(0,0,0,0.25)] backdrop-blur-xl">
           <div className="flex flex-wrap items-center justify-center gap-4">
             <img src="/youth.png" alt="Youth" className="h-12 w-auto object-contain opacity-95" />
@@ -443,15 +483,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* --- Preference Modal --- */}
       {modalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-[32px] border border-white/20 bg-slate-900 shadow-2xl flex flex-col">
             <div className="border-b border-white/10 bg-white/5 px-6 py-4">
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-2xl font-bold text-white">{modalData.name}</h3>
-                  <p className="text-xs uppercase tracking-widest text-cyan-300">{modalData.type} Interest Breakdown</p>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">{modalData.name}</h3>
+                    <p className="text-xs uppercase tracking-widest text-cyan-300">{modalData.type} Interest Breakdown</p>
+                  </div>
+                  <button
+                    onClick={handleExport}
+                    className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/20"
+                  >
+                    📥 Export Sorted CSV
+                  </button>
                 </div>
                 <button 
                   onClick={() => setModalData(null)}
