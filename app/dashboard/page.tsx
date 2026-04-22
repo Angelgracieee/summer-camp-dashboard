@@ -57,7 +57,7 @@ type FieldProps = {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
 
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [rawData, setRawData] = useState<DashboardData | null>(null);
   const [selected, setSelected] = useState<Respondent | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -71,6 +71,29 @@ export default function DashboardPage() {
   const [modalSexFilter, setModalSexFilter] = useState<"All" | "Male" | "Female">("All");
   const [modalAgeFilter, setModalAgeFilter] = useState<"Any Age" | "7-10" | "11-14" | "15-17">("Any Age");
   const [modalSearch, setModalSearch] = useState("");
+
+  // Re-calculate rankings based on unique human selections to ensure consistency with the Modal
+  const data = useMemo(() => {
+    if (!rawData) return null;
+
+    const processRanking = (ranking: RankingItem[], type: "sportPreferences" | "talentPreferences") => {
+      return ranking
+        .map((item) => {
+          const uniqueCount = rawData.respondents.filter((r) => 
+            r[type].includes(item.name)
+          ).length;
+          return { ...item, votes: uniqueCount };
+        })
+        .sort((a, b) => b.votes - a.votes)
+        .map((item, index) => ({ ...item, rank: index + 1 }));
+    };
+
+    return {
+      ...rawData,
+      sportsRanking: processRanking(rawData.sportsRanking, "sportPreferences"),
+      talentRanking: processRanking(rawData.talentRanking, "talentPreferences"),
+    };
+  }, [rawData]);
 
   async function loadData(showLoader = false) {
     try {
@@ -100,7 +123,7 @@ export default function DashboardPage() {
         throw new Error("API returned unsuccessful response.");
       }
 
-      setData(json);
+      setRawData(json);
 
       if (json.respondents.length > 0) {
         setSelected((prev) => {
@@ -113,7 +136,7 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
-      setData(null);
+      setRawData(null);
       setSelected(null);
     } finally {
       if (showLoader) setLoading(false);
@@ -188,9 +211,10 @@ export default function DashboardPage() {
       stats: counts,
       ageStats: ageCounts,
       participantsByChoice: {
-        first: filteredList.filter((p) => p[prefKey][0] === itemName),
-        second: filteredList.filter((p) => p[prefKey][1] === itemName),
-        third: filteredList.filter((p) => p[prefKey][2] === itemName),
+        // Use indexOf to find ONLY the first time they picked the item
+        first: filteredList.filter((p) => p[prefKey].indexOf(itemName) === 0),
+        second: filteredList.filter((p) => p[prefKey].indexOf(itemName) === 1),
+        third: filteredList.filter((p) => p[prefKey].indexOf(itemName) === 2),
       }
     };
   }, [modalData, data, modalSexFilter, modalAgeFilter, modalSearch]);
@@ -563,7 +587,6 @@ export default function DashboardPage() {
 
 function ModalSection({ title, participants, color }: { title: string, participants: Respondent[], color: string }) {
   return (
-    /* We use h-[300px] for mobile and lg:h-[450px] for desktop */
     <div className="flex flex-col h-[300px] lg:h-[450px] border border-white/5 bg-white/5 rounded-3xl p-4 overflow-hidden">
       <h4 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400 border-l-4 border-white/20 pl-3 shrink-0">
         {title} ({participants.length})
