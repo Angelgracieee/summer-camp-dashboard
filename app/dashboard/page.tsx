@@ -219,6 +219,7 @@ export default function DashboardPage() {
         "No.": "",
         "Full Name": p.fullName,
         "Choice Level": labels[choiceIdx] || "N/A",
+        "Birthday": p.birthday,
         "Age": p.age,
         "Sex": p.sex,
       };
