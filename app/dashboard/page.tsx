@@ -168,10 +168,11 @@ export default function DashboardPage() {
     });
   }, [data, search, filter]);
 
- const { stats, ageStats, participantsByChoice, exportData } = useMemo(() => {
+  // --- UPDATED MODAL CALCULATIONS ---
+  const { stats, ageStats, participantsByChoice, exportData } = useMemo(() => {
     if (!modalData || !data) return {
       stats: { all: 0, male: 0, female: 0 },
-      ageStats: { "7-10": 0, "11-14": 0, "15-17": 0 },
+      ageStats: { all: 0, "7-10": 0, "11-14": 0, "15-17": 0 },
       participantsByChoice: { first: [], second: [], third: [] },
       exportData: []
     };
@@ -180,54 +181,49 @@ export default function DashboardPage() {
     const prefKey = modalData.type === "Sports" ? "sportPreferences" : "talentPreferences";
     const baseList = data.respondents.filter((p) => p[prefKey].includes(itemName));
 
-    // --- NEW DYNAMIC CALCULATION ---
+    // Helper to check Age range match
+    const matchesAgeRange = (ageStr: string, filter: string) => {
+      const ageNum = parseInt(ageStr);
+      if (filter === "Any Age") return true;
+      if (filter === "7-10") return ageNum >= 7 && ageNum <= 10;
+      if (filter === "11-14") return ageNum >= 11 && ageNum <= 14;
+      if (filter === "15-17") return ageNum >= 15 && ageNum <= 17;
+      return false;
+    };
 
-    // 1. Calculate Sex Stats based on current Age & Search filters
-    const listForSexStats = baseList.filter(p => {
-      const searchMatch = p.fullName.toLowerCase().includes(modalSearch.toLowerCase());
-      let ageMatch = false;
-      const ageNum = parseInt(p.age);
-      if (modalAgeFilter === "Any Age") ageMatch = true;
-      else if (modalAgeFilter === "7-10") ageMatch = ageNum >= 7 && ageNum <= 10;
-      else if (modalAgeFilter === "11-14") ageMatch = ageNum >= 11 && ageNum <= 14;
-      else if (modalAgeFilter === "15-17") ageMatch = ageNum >= 15 && ageNum <= 17;
-      return searchMatch && ageMatch;
-    });
+    // 1. Calculate Sex Stats (depends on Age + Search)
+    const sexContextList = baseList.filter(p =>
+      p.fullName.toLowerCase().includes(modalSearch.toLowerCase()) &&
+      matchesAgeRange(p.age, modalAgeFilter)
+    );
 
     const counts = {
-      all: listForSexStats.length,
-      male: listForSexStats.filter(p => p.sex.toLowerCase() === "male").length,
-      female: listForSexStats.filter(p => p.sex.toLowerCase() === "female").length
+      all: sexContextList.length,
+      male: sexContextList.filter(p => p.sex.toLowerCase() === "male").length,
+      female: sexContextList.filter(p => p.sex.toLowerCase() === "female").length
     };
 
-    // 2. Calculate Age Stats based on current Sex & Search filters
-    const listForAgeStats = baseList.filter(p => {
-      const sexMatch = modalSexFilter === "All" || p.sex.toLowerCase() === modalSexFilter.toLowerCase();
-      const searchMatch = p.fullName.toLowerCase().includes(modalSearch.toLowerCase());
-      return sexMatch && searchMatch;
-    });
+    // 2. Calculate Age Stats (depends on Sex + Search)
+    const ageContextList = baseList.filter(p =>
+      p.fullName.toLowerCase().includes(modalSearch.toLowerCase()) &&
+      (modalSexFilter === "All" || p.sex.toLowerCase() === modalSexFilter.toLowerCase())
+    );
 
-    const ageCounts = {
-      "7-10": listForAgeStats.filter(p => { const a = parseInt(p.age); return a >= 7 && a <= 10; }).length,
-      "11-14": listForAgeStats.filter(p => { const a = parseInt(p.age); return a >= 11 && a <= 14; }).length,
-      "15-17": listForAgeStats.filter(p => { const a = parseInt(p.age); return a >= 15 && a <= 17; }).length
+    const aCounts = {
+      all: ageContextList.length,
+      "7-10": ageContextList.filter(p => matchesAgeRange(p.age, "7-10")).length,
+      "11-14": ageContextList.filter(p => matchesAgeRange(p.age, "11-14")).length,
+      "15-17": ageContextList.filter(p => matchesAgeRange(p.age, "15-17")).length
     };
 
-    // 3. Final Filtered List (The actual participants displayed)
+    // 3. Final Filtered List for Display (depends on everything)
     const filteredList = baseList.filter((p) => {
       const sexMatch = modalSexFilter === "All" || p.sex.toLowerCase() === modalSexFilter.toLowerCase();
       const searchMatch = p.fullName.toLowerCase().includes(modalSearch.toLowerCase());
-      let ageMatch = false;
-      const ageNum = parseInt(p.age);
-      if (modalAgeFilter === "Any Age") ageMatch = true;
-      else if (modalAgeFilter === "7-10") ageMatch = ageNum >= 7 && ageNum <= 10;
-      else if (modalAgeFilter === "11-14") ageMatch = ageNum >= 11 && ageNum <= 14;
-      else if (modalAgeFilter === "15-17") ageMatch = ageNum >= 15 && ageNum <= 17;
-
+      const ageMatch = matchesAgeRange(p.age, modalAgeFilter);
       return sexMatch && ageMatch && searchMatch;
     });
 
-    // --- REST OF YOUR LOGIC (Sorting and Export) ---
     const sortedList = [...filteredList].sort((a, b) => {
       return a[prefKey].indexOf(itemName) - b[prefKey].indexOf(itemName);
     });
@@ -236,6 +232,7 @@ export default function DashboardPage() {
       const choiceIdx = p[prefKey].indexOf(itemName);
       const labels = ["1st Choice", "2nd Choice", "3rd Choice"];
       return {
+        "No.": "",
         "Full Name": p.fullName,
         "Choice Level": labels[choiceIdx] || "N/A",
         "Category": p.category,
@@ -247,7 +244,7 @@ export default function DashboardPage() {
 
     return {
       stats: counts,
-      ageStats: ageCounts,
+      ageStats: aCounts,
       participantsByChoice: {
         first: filteredList.filter((p) => p[prefKey].indexOf(itemName) === 0),
         second: filteredList.filter((p) => p[prefKey].indexOf(itemName) === 1),
@@ -328,14 +325,6 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {/* New Slot Allocation Button */}
-                  <button
-                    onClick={() => window.location.href = '/slots'}
-                    className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
-                  >
-                    Slot Allocation
-                  </button>
-
                   <button
                     onClick={() => signOut({ callbackUrl: "/login" })}
                     className="rounded-full border border-red-300/20 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-400/20"
@@ -574,7 +563,7 @@ export default function DashboardPage() {
                         : "bg-white/5 text-slate-400 border-white/10 hover:border-white/30"
                         }`}
                     >
-                      ANY AGE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "Any Age" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{stats.all}</span>
+                      ANY AGE <span className={`px-2 py-0.5 rounded-md text-[10px] ${modalAgeFilter === "Any Age" ? "bg-slate-900 text-white" : "bg-white/10 text-slate-300"}`}>{ageStats.all}</span>
                     </button>
                     <button
                       onClick={() => setModalAgeFilter("7-10")}
