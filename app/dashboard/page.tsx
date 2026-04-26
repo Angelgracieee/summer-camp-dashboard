@@ -168,7 +168,7 @@ export default function DashboardPage() {
     });
   }, [data, search, filter]);
 
-  const { stats, ageStats, participantsByChoice, exportData } = useMemo(() => {
+ const { stats, ageStats, participantsByChoice, exportData } = useMemo(() => {
     if (!modalData || !data) return {
       stats: { all: 0, male: 0, female: 0 },
       ageStats: { "7-10": 0, "11-14": 0, "15-17": 0 },
@@ -178,25 +178,45 @@ export default function DashboardPage() {
 
     const itemName = modalData.name;
     const prefKey = modalData.type === "Sports" ? "sportPreferences" : "talentPreferences";
-
     const baseList = data.respondents.filter((p) => p[prefKey].includes(itemName));
 
+    // --- NEW DYNAMIC CALCULATION ---
+
+    // 1. Calculate Sex Stats based on current Age & Search filters
+    const listForSexStats = baseList.filter(p => {
+      const searchMatch = p.fullName.toLowerCase().includes(modalSearch.toLowerCase());
+      let ageMatch = false;
+      const ageNum = parseInt(p.age);
+      if (modalAgeFilter === "Any Age") ageMatch = true;
+      else if (modalAgeFilter === "7-10") ageMatch = ageNum >= 7 && ageNum <= 10;
+      else if (modalAgeFilter === "11-14") ageMatch = ageNum >= 11 && ageNum <= 14;
+      else if (modalAgeFilter === "15-17") ageMatch = ageNum >= 15 && ageNum <= 17;
+      return searchMatch && ageMatch;
+    });
+
     const counts = {
-      all: baseList.length,
-      male: baseList.filter(p => p.sex.toLowerCase() === "male").length,
-      female: baseList.filter(p => p.sex.toLowerCase() === "female").length
+      all: listForSexStats.length,
+      male: listForSexStats.filter(p => p.sex.toLowerCase() === "male").length,
+      female: listForSexStats.filter(p => p.sex.toLowerCase() === "female").length
     };
+
+    // 2. Calculate Age Stats based on current Sex & Search filters
+    const listForAgeStats = baseList.filter(p => {
+      const sexMatch = modalSexFilter === "All" || p.sex.toLowerCase() === modalSexFilter.toLowerCase();
+      const searchMatch = p.fullName.toLowerCase().includes(modalSearch.toLowerCase());
+      return sexMatch && searchMatch;
+    });
 
     const ageCounts = {
-      "7-10": baseList.filter(p => parseInt(p.age) >= 7 && parseInt(p.age) <= 10).length,
-      "11-14": baseList.filter(p => parseInt(p.age) >= 11 && parseInt(p.age) <= 14).length,
-      "15-17": baseList.filter(p => parseInt(p.age) >= 15 && parseInt(p.age) <= 17).length
+      "7-10": listForAgeStats.filter(p => { const a = parseInt(p.age); return a >= 7 && a <= 10; }).length,
+      "11-14": listForAgeStats.filter(p => { const a = parseInt(p.age); return a >= 11 && a <= 14; }).length,
+      "15-17": listForAgeStats.filter(p => { const a = parseInt(p.age); return a >= 15 && a <= 17; }).length
     };
 
+    // 3. Final Filtered List (The actual participants displayed)
     const filteredList = baseList.filter((p) => {
       const sexMatch = modalSexFilter === "All" || p.sex.toLowerCase() === modalSexFilter.toLowerCase();
       const searchMatch = p.fullName.toLowerCase().includes(modalSearch.toLowerCase());
-
       let ageMatch = false;
       const ageNum = parseInt(p.age);
       if (modalAgeFilter === "Any Age") ageMatch = true;
@@ -207,18 +227,18 @@ export default function DashboardPage() {
       return sexMatch && ageMatch && searchMatch;
     });
 
-    // Sort by Choice Level (1st, 2nd, 3rd)
+    // --- REST OF YOUR LOGIC (Sorting and Export) ---
     const sortedList = [...filteredList].sort((a, b) => {
       return a[prefKey].indexOf(itemName) - b[prefKey].indexOf(itemName);
     });
 
-    const exportRows = sortedList.map((p, index) => {
+    const exportRows = sortedList.map((p) => {
       const choiceIdx = p[prefKey].indexOf(itemName);
       const labels = ["1st Choice", "2nd Choice", "3rd Choice"];
       return {
-        "No.": "",
         "Full Name": p.fullName,
         "Choice Level": labels[choiceIdx] || "N/A",
+        "Category": p.category,
         "Birthday": p.birthday,
         "Age": p.age,
         "Sex": p.sex,
@@ -306,15 +326,27 @@ export default function DashboardPage() {
                 <div className="rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200">
                   Supervisor Access Only
                 </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {/* New Slot Allocation Button */}
+                  <button
+                    onClick={() => window.location.href = '/slots'}
+                    className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
+                  >
+                    Slot Allocation
+                  </button>
+
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/login" })}
+                    className="rounded-full border border-red-300/20 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-400/20"
+                  >
+                    Log out
+                  </button>
+                </div>
+
                 <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
                   Signed in as: <span className="font-semibold text-cyan-100">{session?.user?.email}</span>
                 </div>
-                <button
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="rounded-full border border-red-300/20 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-400/20"
-                >
-                  Log out
-                </button>
               </div>
             </div>
           </div>
