@@ -3,6 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 
+type AllocatedParticipant = Respondent & {
+  isDual: boolean;
+  assignedTo: string;
+  choiceLevel: number;
+  partnerSlot?: string;
+  isPartnerAllocated?: boolean;
+};
+
 type Respondent = {
   id: string;
   timestamp: string;
@@ -74,8 +82,8 @@ export default function SlotAllocationPage() {
   const allocations = useMemo(() => {
     if (!rawData) return { sports: {}, talent: {}, waitlist: [], partialWaitlist: [], totalUniqueAllocated: 0 };
 
-    const sportsAlloc: Record<string, { list: any[]; filled: number }> = {};
-    const talentAlloc: Record<string, { list: any[]; filled: number }> = {};
+    const sportsAlloc: Record<string, { list: AllocatedParticipant[]; filled: number }> = {};
+    const talentAlloc: Record<string, { list: AllocatedParticipant[]; filled: number }> = {};
     const waitlist: any[] = [];
     const partialWaitlist: any[] = [];
     const allocatedPeopleIds = new Set();
@@ -301,7 +309,7 @@ function TabbedDetailFrame({ title, data, color, searchQuery, setSearchQuery }: 
 
   // Global list combined from all categories
   const allParticipants = useMemo(() => {
-    const combined: any[] = [];
+    const combined: AllocatedParticipant[] = [];
     Object.keys(data).forEach(catName => {
       data[catName].list.forEach((p: any) => combined.push(p));
     });
@@ -318,7 +326,7 @@ function TabbedDetailFrame({ title, data, color, searchQuery, setSearchQuery }: 
     const listToExport = activeTab === "ALL_PARTICIPANTS" ? allParticipants : data[activeTab]?.list;
     if (!listToExport) return;
 
-    const exportData = listToExport.map((p, i) => {
+    const exportData = listToExport.map((p: AllocatedParticipant, i: number) => {
       // If they only picked one category, don't say they are waitlisted for the other
       const secondaryStatus = p.isDual ? (p.partnerSlot || "WAITLISTED") : "NOT REQUESTED";
 
