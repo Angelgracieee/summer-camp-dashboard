@@ -192,7 +192,7 @@ export default function DashboardPage() {
     };
 
     // 1. Calculate Sex Stats (depends on Age + Search)
-    const sexContextList = baseList.filter(p =>
+    const sexContextList = baseList.filter(p => 
       p.fullName.toLowerCase().includes(modalSearch.toLowerCase()) &&
       matchesAgeRange(p.age, modalAgeFilter)
     );
@@ -204,7 +204,7 @@ export default function DashboardPage() {
     };
 
     // 2. Calculate Age Stats (depends on Sex + Search)
-    const ageContextList = baseList.filter(p =>
+    const ageContextList = baseList.filter(p => 
       p.fullName.toLowerCase().includes(modalSearch.toLowerCase()) &&
       (modalSexFilter === "All" || p.sex.toLowerCase() === modalSexFilter.toLowerCase())
     );
@@ -325,6 +325,13 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => window.location.href = '/slots'}
+                    className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
+                  >
+                    Slot Allocation
+                  </button>
+
                   <button
                     onClick={() => signOut({ callbackUrl: "/login" })}
                     className="rounded-full border border-red-300/20 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-400/20"
@@ -493,7 +500,7 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-300">
               Developed by <span className="font-semibold text-cyan-300">A. Fojas</span>
             </p>
-            <p className="mt-1 text-xs text-slate-500">Bagong Cabuyao Summer Camp 2026</p>
+            <p className="mt-1 text-xs text-slate-500">Bagong Cabuyao Summer Camp © 2026</p>
           </div>
         </div>
       </div>
